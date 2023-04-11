@@ -2,7 +2,6 @@ import dash
 import dash_bootstrap_components as dbc
 import pandas as pd
 from dash import dash_table, dcc, html
-from sqlalchemy import create_engine
 
 # load the gapminder data to a dataframe
 df = pd.read_csv(
@@ -22,62 +21,29 @@ layout = go.Layout(title="My Line Chart")
 fig = go.Figure(data=data, layout=layout)
 
 
-def create_sqlite_db(dataframes):
-    """
-    This function takes a list of pandas dataframes and turns them into an inmemory sqlite database.
-    It uses the pandas.to_sql() method to create a table for each dataframe in the list. The table name
-    is the same as the dataframe name. The index of the dataframe is not saved in the database.
-
-    :param dataframes: list of pandas dataframes
-    :return: sqlite database
-    """
-    # create an in memory sqlite database
-    engine = create_engine("sqlite:///:memory:")
-    # loop through the dataframes and save them to the database
-    for dataframe in dataframes:
-        dataframe.to_sql(dataframe.name, engine, index=False)
-    return engine
-
-
-""" function that returns the tables, their column names and datatypes of the sqlite in-memory database, the table names are dictory keys and the column names and datatypes are the values as tuples"""
-
-
-def get_sqlite_table_info(engine):
-    """
-    This function returns the tables, their column names and datatypes of the sqlite in-memory database.
-    The table names are dictory keys and the column names and datatypes are the values as tuples.
-
-    :param engine: sqlite database
-    :return: dictionary with table names as keys and column names and datatypes as values
-    """
-    # get the table names from the database
-    table_names = engine.table_names()
-    # create an empty dictionary to store the table info
-    table_info = {}
-    # loop through the table names
-    for table in table_names:
-        # get the column names and datatypes of the table
-        table_info[table] = engine.execute(f"PRAGMA table_info({table})").fetchall()
-    return table_info
-
-
 """ function that takes a string and a list of strings, checks if any string of the list is contained in the string, case insensitive"""
 
 
 def check_string_in_list(string, list_of_strings):
     """
     This function takes a string and a list of strings, checks if any string of the list is contained in the string, case insensitive.
-
     :param string: string to check
     :param list_of_strings: list of strings to check
     :return: boolean
     """
-    # loop through the list of strings
-    for item in list_of_strings:
-        # check if the string is contained in the item, case insensitive
-        if item.lower() in string.lower():
-            return True
-    return False
+    # use the string.lower() method to check if any of the strings in the list are contained in the string, case insensitive
+    return any(item.lower() in string.lower() for item in list_of_strings)
+
+
+def query_sqlite_db(engine, query):
+    """
+    This function takes a sqlite database and a query string and returns the result of the query as a pandas dataframe.
+    :param engine: sqlite database
+    :param query: query string
+    :return: pandas dataframe
+    """
+    # use the pandas.read_sql_query() method to execute the query and return the result as a dataframe
+    return pd.read_sql_query(query, engine)
 
 
 def generate_table(dataframe, max_rows=10):
@@ -99,6 +65,59 @@ def generate_table(dataframe, max_rows=10):
         filter_action="native",
         sort_action="native",
     )
+
+
+# Define a function to convert the contents of an uploaded file to a pandas dataframe
+def parse_contents(contents, filename):
+    """
+    This function takes the contents and filename of an uploaded file and returns a pandas dataframe.
+    :param contents:
+    :param filename:
+    :return:
+    """
+    # Check if file is an Excel file and parse if it is
+    if "xlsx" in filename:
+        # Assume the Excel file has only one sheet
+        df = pd.read_excel(io.BytesIO(contents[0]), sheet_name=0)
+    # Check if file is a CSV file and parse if it is
+    elif "csv" in filename:
+        # Assume the CSV file uses comma delimiter and UTF-8 encoding
+        df = pd.read_csv(io.StringIO(contents[0].decode("utf-8")), delimiter=",")
+    else:
+        # If file is not an Excel or CSV file, return an empty dataframe
+        df = pd.DataFrame()
+
+    return df
+
+
+@app.callback(
+    Output("output-data", "children"),
+    Input("upload-data", "contents"),
+    Input("upload-data", "filename"),
+)
+def update_output(contents, filename):
+    # If no files have been uploaded, return an empty list
+    if contents is None:
+        return html.Div("No files uploaded.")
+
+    # Parse contents of each uploaded file and store in a list
+    df_list = [parse_contents(contents[i], filename[i]) for i in range(len(contents))]
+
+    # Return a list of dataframes as a string representation of tables
+    return [
+        html.Div(
+            [
+                html.H5(filename[i]),
+                dcc.Table(
+                    # Convert dataframe to a list of dictionaries for each row
+                    data=df_list[i].to_dict("records"),
+                    columns=[{"name": col, "id": col} for col in df_list[i].columns],
+                ),
+                html.Hr(),
+            ]
+        )
+        for i in range(len(df_list))
+    ]
 
 
 app = dash.Dash(external_stylesheets=[dbc.themes.BOOTSTRAP])
