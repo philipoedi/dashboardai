@@ -1,3 +1,5 @@
+import io
+
 import pandas as pd
 from sqlalchemy import create_engine
 
@@ -39,3 +41,36 @@ def get_sqlite_table_info(engine):
             for tup in engine.execute(f"PRAGMA table_info({table})").fetchall()
         ]
     return table_info
+
+
+def query_sqlite_db(engine, query):
+    """
+    This function takes a sqlite database and a query string and returns the result of the query as a pandas dataframe.
+    :param engine: sqlite database
+    :param query: query string
+    :return: pandas dataframe
+    """
+    # use the pandas.read_sql_query() method to execute the query and return the result as a dataframe
+    return pd.read_sql_query(query, engine)
+
+
+def parse_contents(contents, filename):
+    """
+    This function takes the contents and filename of an uploaded file and returns a pandas dataframe.
+    :param contents:
+    :param filename:
+    :return:
+    """
+    # Check if file is an Excel file and parse if it is
+    if "xlsx" in filename:
+        # Assume the Excel file has only one sheet
+        df = pd.read_excel(io.BytesIO(contents[0]), sheet_name=0)
+    # Check if file is a CSV file and parse if it is
+    elif "csv" in filename:
+        # Assume the CSV file uses comma delimiter and UTF-8 encoding
+        df = pd.read_csv(io.StringIO(contents[0].decode("utf-8")), delimiter=",")
+    else:
+        # If file is not an Excel or CSV file, return an empty dataframe
+        df = pd.DataFrame()
+
+    return df

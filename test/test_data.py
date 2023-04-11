@@ -7,7 +7,12 @@ import pandas as pd
 import pytest
 from sqlalchemy import create_engine
 
-from dashboardai.data import create_sqlite_db, get_sqlite_table_info
+from dashboardai.data import (
+    create_sqlite_db,
+    get_sqlite_table_info,
+    parse_contents,
+    query_sqlite_db,
+)
 
 
 def test_create_sqlite_db():
@@ -51,3 +56,21 @@ def test_get_sqlite_table_info():
             {"name": "col2", "dtype": "BIGINT"},
         ],
     }
+
+
+def test_query_sqlite_db():
+    """test the query_sqlite_db function"""
+    # create a list of pandas dataframes
+    dataframes = [
+        pd.DataFrame({"col1": [1, 2], "col2": [3, 4]}),
+        pd.DataFrame({"col1": [5, 6], "col2": [7, 8]}),
+    ]
+    # create an in memory sqlite database from the dataframes
+    dataframes[0].name = "table1"
+    dataframes[1].name = "table2"
+    engine = create_sqlite_db(dataframes)
+    # execute a query on the database
+    query = "SELECT * FROM table1"
+    result = query_sqlite_db(engine, query)
+    # check if the result is the same as the dataframe
+    assert result.equals(dataframes[0])
