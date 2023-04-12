@@ -1,14 +1,15 @@
+import base64
 import io
 
 import pandas as pd
+from dash import html
 from sqlalchemy import create_engine
 
 
 def create_sqlite_db(dataframes):
     """
-    This function takes a list of pandas dataframes and turns them into an inmemory sqlite database.
-    It uses the pandas.to_sql() method to create a table for each dataframe in the list. The table name
-    is the same as the dataframe name. The index of the dataframe is not saved in the database.
+    This function takes a list dicts with keys name (the table name) and data (pandas dataframes) and turns them into an inmemory sqlite database.
+    It uses the pandas.to_sql() method to create a table for each dataframe in the list. The index of the dataframe is not saved in the database.
 
     :param dataframes: list of pandas dataframes
     :return: sqlite database
@@ -16,8 +17,8 @@ def create_sqlite_db(dataframes):
     # create an in memory sqlite database
     engine = create_engine("sqlite:///:memory:")
     # loop through the dataframes and save them to the database
-    for dataframe in dataframes:
-        dataframe.to_sql(dataframe.name, engine, index=False)
+    for df in dataframes:
+        df["data"].to_sql(df["name"], engine, index=False)
     return engine
 
 
@@ -55,22 +56,57 @@ def query_sqlite_db(engine, query):
 
 
 def parse_contents(contents, filename):
-    """
-    This function takes the contents and filename of an uploaded file and returns a pandas dataframe.
-    :param contents:
-    :param filename:
-    :return:
-    """
-    # Check if file is an Excel file and parse if it is
-    if "xlsx" in filename:
-        # Assume the Excel file has only one sheet
-        df = pd.read_excel(io.BytesIO(contents[0]), sheet_name=0)
-    # Check if file is a CSV file and parse if it is
-    elif "csv" in filename:
-        # Assume the CSV file uses comma delimiter and UTF-8 encoding
-        df = pd.read_csv(io.StringIO(contents[0].decode("utf-8")), delimiter=",")
-    else:
-        # If file is not an Excel or CSV file, return an empty dataframe
-        df = pd.DataFrame()
+    content_type, content_string = contents.split(",")
+    decoded = base64.b64decode(content_string)
+    try:
+        if "csv" in filename:
+            # Assume that the user uploaded a CSV file
+            df = pd.read_csv(io.StringIO(decoded.decode("utf-8")))
+        elif "xls" in filename:
+            # Assume that the user uploaded an excel file
+            df = pd.read_excel(io.BytesIO(decoded))
+        # remove filending from filename, split from right and take first element
+        df.name = filename.rsplit(".", 1)[0]
+        return df
+    except Exception as e:
+        print(e)
+        return html.Div(["There was an error processing this file."])
 
-    return df
+
+def create_duckdb(dataframes):
+    """
+    This function takes a list of pandas dataframes and turns them into an in-memory DuckDB database.
+    It uses the pandas.to_sql() method to create a table for each dataframe in the list. The table name
+    is the same as the dataframe name. The index of the dataframe is not saved in the database.
+     :param dataframes: list of pandas dataframes
+    :return: DuckDB database
+    """
+    # create an in memory DuckDB database
+    con = duckdb.connect(":memory:")
+    # loop through the dataframes and save them to the database
+    for dataframe in dataframes:
+        dataframe.to_sql(dataframe.name, con, index=False)
+    return con
+
+
+def get_duckdb_table_info(con):
+    """
+    This function returns the tables, their column names and datatypes of the DuckDB in-memory database.
+    The table names are dictionary keys and the column names and datatypes are the values as tuples.
+     :param con: DuckDB database
+    :return: dictionary with table names as keys and column names and datatypes as values
+    """
+    # get the table names from the database
+    table_names = con.execute(
+        "SELECT name FROM sqlite_master WHERE type='table';"
+    ).fetchall()
+    # create an empty dictionary to store the table info
+    table_info = {}
+    # loop through the table names
+    for table in table_names:
+        # get the column names and datatypes of the table
+        table_info[table[0]] = [
+            {"name": column[0], "dtype": column[1]}
+            for column in con.execute(f"PRAGMA table_info('{table[0]}')").fetchall()
+        ]
+    return table_info

@@ -1,0 +1,8 @@
+country,region,income,income_level,life_exp,co2,co2_change,population
+Afghanistan,Asia,2.03,Level 1,62.7,0.254,increase,37.2
+Albania,Europe,13.3,Level 3,78.4,1.59,increase,2.88
+Algeria,Africa,11.6,Level 3,76,3.69,increase,42.2
+Andorra,Europe,58.3,Level 4,82.1,6.12,decrease,0.077
+Angola,Africa,6.93,Level 2,64.6,1.12,decrease,30.8
+Antigua and Barbuda,Americas,21,Level 3,76.2,5.88,increase,0.0963
+Argentina,Americas,22.7,Level 3,76.5,4.41,decrease,44.4
