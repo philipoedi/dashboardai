@@ -1,3 +1,14 @@
 # Default ignored files
 /shelf/
 /workspace.xml
+
+# Environment files
+.env
+.env.local
+.env.*
+
+# Cache files
+__pycache__/
+*.py[cod]
+.cache/
+.pytest_cache/
