@@ -34,8 +34,13 @@ df = pd.read_csv(
 
 import os
 
-os.environ["OPENAI_API_KEY"] = "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"
-openai.api_key = os.environ["OPENAI_API_KEY"]
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv(override=True)
+
+# Configure OpenAI API key
+openai.api_key = os.getenv("OPENAI_API_KEY")
 
 import plotly.graph_objs as go
 
@@ -126,12 +131,18 @@ app.layout = dbc.Container(
     [Input("upload-data", "contents"), State("upload-data", "filename")],
 )
 def make_sqlite_db(contents, filename):
+    print("Upload callback triggered")  # Debug print
+    print(f"Contents: {contents is not None}")  # Debug print
+    print(f"Filename: {filename}")  # Debug print
+
     if contents is not None:
         dfs = {
             name.rsplit(".", 1)[0]: parse_contents(content, name).to_dict("records")
             for content, name in zip(contents, filename)
         }
+        print(f"Processed dataframes: {list(dfs.keys())}")  # Debug print
         return dfs
+    return None  # Add explicit return for when contents is None
 
 
 @app.callback(
@@ -140,9 +151,12 @@ def make_sqlite_db(contents, filename):
     [Input("chat_input_table", "value"), State("memory", "data")],
 )
 def update_table(text_input, dfs):
+    print("Update table callback triggered")  # Debug print
+    print(f"DFs available: {dfs}")  # Debug print
+
     if dfs is None:
         return html.Div(["No file selected"]), None
-    else:
+    try:
         if text_input == "":
             dfs = [{"name": name, "data": pd.DataFrame(dfs[name])} for name in dfs]
             return generate_table(dfs[0]["data"]), dfs[0]["data"].to_dict("records")
@@ -155,10 +169,11 @@ def update_table(text_input, dfs):
             prompt = combine_prompts(fixed_sql_prompt, text_input)
             response = send_to_openai(prompt, stop=[";", "#"])
             proposed_query_postprocessed = handle_response(response)
-            print("##################")
-            print(proposed_query_postprocessed)
             result = query_sqlite_db(engine, proposed_query_postprocessed)
             return generate_table(result), result.to_dict("records")
+    except Exception as e:
+        print(f"Error in update_table: {str(e)}")  # Debug print
+        return html.Div([f"Error processing data: {str(e)}"]), None
 
 
 @app.callback(

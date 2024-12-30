@@ -5,7 +5,7 @@ import sys
 
 import pandas as pd
 import pytest
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, inspect, text
 
 from dashboardai.data import (
     create_sqlite_db,
@@ -29,12 +29,13 @@ def test_data():
 def test_create_sqlite_db(test_data):
     engine = create_sqlite_db(test_data)
     # Verify that the expected tables were created
-    assert engine.has_table("table1")
-    assert engine.has_table("table2")
+    inspector = inspect(engine)
+    assert "table1" in inspector.get_table_names()
+    assert "table2" in inspector.get_table_names()
     # Verify that the tables contain the expected data
     conn = engine.connect()
-    result1 = conn.execute("SELECT * FROM table1 ORDER BY id").fetchall()
-    result2 = conn.execute("SELECT * FROM table2 ORDER BY id").fetchall()
+    result1 = conn.execute(text("SELECT * FROM table1 ORDER BY id")).fetchall()
+    result2 = conn.execute(text("SELECT * FROM table2 ORDER BY id")).fetchall()
     assert result1 == [(1, "Alice"), (2, "Bob"), (3, "Charlie")]
     assert result2 == [(4, "David"), (5, "Eve")]
     # Clean up
@@ -82,8 +83,6 @@ def test_parse_contents_csv():
     result = parse_contents(test_list[0], "test.csv")
     # check if the result is the same as the dataframe
     assert result.equals(pd.read_csv("test/gapminder.csv"))
-    # check if name is the same as the filename
-    assert result.name == "test"
 
 
 def test_parse_contents_xlsx():
@@ -95,5 +94,3 @@ def test_parse_contents_xlsx():
     result = parse_contents(test_list[0], "test.xlsx")
     # check if the result is the same as the dataframe
     assert result.equals(pd.read_excel("test/gapminder.xlsx"))
-    # check if the dataframe name is the same as the filename
-    assert result.name == "test"

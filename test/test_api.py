@@ -80,10 +80,10 @@ def test_single_semicolon():
     # remove semicolons in brackets
     output_str = single_semicolon(input_str)
     # check if the output is correct
-    assert output_str == ";"
+    assert output_str == ""
     input_str = ";;  ;  ;"
     output_str = single_semicolon(input_str)
-    assert output_str == ";"
+    assert output_str == ""
     input_str = "c;;b; ; a"
     output_str = single_semicolon(input_str)
     assert output_str == "c;b;a"

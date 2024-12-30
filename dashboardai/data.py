@@ -3,7 +3,7 @@ import io
 
 import pandas as pd
 from dash import html
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, inspect, text
 
 
 def create_sqlite_db(dataframes):
@@ -25,22 +25,28 @@ def create_sqlite_db(dataframes):
 def get_sqlite_table_info(engine):
     """
     This function returns the tables, their column names and datatypes of the sqlite in-memory database.
-    The table names are dictory keys and the column names and datatypes are the values as tuples.
+    The table names are dictionary keys and the column names and datatypes are the values as tuples.
 
     :param engine: sqlite database
     :return: dictionary with table names as keys and column names and datatypes as values
     """
-    # get the table names from the database
-    table_names = engine.table_names()
+    # get the table names from the database using inspector
+    inspector = inspect(engine)
+    table_names = inspector.get_table_names()
+
     # create an empty dictionary to store the table info
     table_info = {}
-    # loop through the table names
-    for table in table_names:
-        # get the column names and datatypes of the table
-        table_info[table] = [
-            {"name": tup[1], "dtype": tup[2]}
-            for tup in engine.execute(f"PRAGMA table_info({table})").fetchall()
-        ]
+
+    # Create a connection to execute queries
+    with engine.connect() as conn:
+        # loop through the table names
+        for table in table_names:
+            # get the column names and datatypes of the table
+            table_info[table] = [
+                {"name": tup[1], "dtype": tup[2]}
+                for tup in conn.execute(text(f"PRAGMA table_info({table})")).fetchall()
+            ]
+
     return table_info
 
 
@@ -56,20 +62,24 @@ def query_sqlite_db(engine, query):
 
 
 def parse_contents(contents, filename):
+    print(f"Parsing file: {filename}")  # Debug print
     content_type, content_string = contents.split(",")
     decoded = base64.b64decode(content_string)
     try:
         if "csv" in filename:
             # Assume that the user uploaded a CSV file
             df = pd.read_csv(io.StringIO(decoded.decode("utf-8")))
+            print(f"Successfully parsed CSV with columns: {df.columns}")  # Debug print
+            return df
         elif "xls" in filename:
             # Assume that the user uploaded an excel file
             df = pd.read_excel(io.BytesIO(decoded))
-        # remove filending from filename, split from right and take first element
-        df.name = filename.rsplit(".", 1)[0]
-        return df
+            return df
+        else:
+            print(f"Unsupported file type: {filename}")  # Debug print
+            return None
     except Exception as e:
-        print(e)
+        print(f"Error parsing file: {str(e)}")  # Debug print
         return html.Div(["There was an error processing this file."])
 
 

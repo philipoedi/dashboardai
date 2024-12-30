@@ -1,4 +1,7 @@
+import os
+
 import openai
+from dotenv import load_dotenv
 
 
 def check_string_in_list(string, list_of_strings):
@@ -148,6 +151,20 @@ def handle_response_graph(response):
 
 def single_semicolon(input_str):
     """
-    makes a sequence of ; to a single ; (there can be whitespace between ;)
+    Removes redundant semicolons from a string, including when separated by whitespace.
+
+    For example:
+    "a;;b" -> "a;b"
+    "a;  ;b" -> "a;b"
+
+    Args:
+        input_str (str): String that may contain multiple semicolons
+
+    Returns:
+        str: String with redundant semicolons removed
     """
-    return ";".join(filter(lambda x: x.strip() != "", input_str.split(";")))
+    # Split on semicolons and filter out empty/whitespace-only segments
+    segments = [seg.strip() for seg in input_str.split(";") if seg.strip()]
+
+    # Rejoin with single semicolons
+    return ";".join(segments)
