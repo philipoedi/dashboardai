@@ -34,7 +34,6 @@ df = pd.read_csv(
 
 import os
 
-os.environ["OPENAI_API_KEY"] = "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"
 openai.api_key = os.environ["OPENAI_API_KEY"]
 
 import plotly.graph_objs as go
